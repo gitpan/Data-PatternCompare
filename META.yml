@@ -16,4 +16,4 @@ resources:
   bugtracker: https://github.com/cono/p5-data-patterncompare/issues
   homepage: https://github.com/cono/p5-data-patterncompare
   repository: https://github.com/cono/p5-data-pattern-compare.git
-version: v0.01
+version: 0.02

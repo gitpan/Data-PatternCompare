@@ -20,7 +20,7 @@ my %WriteMakefileArgs = (
   "LICENSE" => "artistic_2",
   "NAME" => "Data::PatternCompare",
   "PREREQ_PM" => {},
-  "VERSION" => "v0.01",
+  "VERSION" => "0.02",
   "test" => {
     "TESTS" => "t/*.t"
   }
