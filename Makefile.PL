@@ -19,15 +19,19 @@ my %WriteMakefileArgs = (
   "EXE_FILES" => [],
   "LICENSE" => "artistic_2",
   "NAME" => "Data::PatternCompare",
-  "PREREQ_PM" => {},
-  "VERSION" => "0.02",
+  "PREREQ_PM" => {
+    "Scalar::Util::Numeric" => 0
+  },
+  "VERSION" => "0.03",
   "test" => {
     "TESTS" => "t/*.t"
   }
 );
 
 
-my %FallbackPrereqs = ();
+my %FallbackPrereqs = (
+  "Scalar::Util::Numeric" => 0
+);
 
 
 unless ( eval { ExtUtils::MakeMaker->VERSION(6.63_03) } ) {

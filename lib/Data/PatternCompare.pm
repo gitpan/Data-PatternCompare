@@ -3,9 +3,11 @@ package Data::PatternCompare;
 use strict;
 use warnings;
 
+use POSIX;
 use Scalar::Util qw(looks_like_number refaddr blessed);
+use Scalar::Util::Numeric qw(isfloat);
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 our $any  = Data::PatternCompare::Any->new;
 
@@ -14,6 +16,7 @@ sub new {
     my %params = @_;
 
     @params{qw(_dup_addr _dup_addra _dup_addrb)} = ({}, {}, {});
+    $params{'epsilon'} ||= POSIX::DBL_EPSILON;
 
     return bless(\%params, $class);
 }
@@ -69,6 +72,11 @@ sub _pattern_match {
         }
 
         if (looks_like_number($expected)) {
+            return 0 unless looks_like_number($got);
+
+            if (isfloat($expected) || isfloat($got)) {
+                return abs($expected - $got) < $self->{'epsilon'};
+            }
             return $expected == $got;
         }
 
@@ -93,7 +101,7 @@ sub _pattern_match {
     }
 
     my $code = $self->can("_match_$ref");
-    die "Don't know how to compare $ref type" unless $code;
+    die "Don't know how to match $ref type" unless $code;
 
     return 0 unless ref($got) eq $ref;
 
@@ -217,7 +225,95 @@ sub compare_pattern {
 
     return $res;
 }
- 
+
+sub _eq_ARRAY {
+    my ($self, $got, $expected) = @_;
+
+    return 0 unless scalar(@$got) == scalar(@$expected);
+
+    for (my $i = 0; $i < scalar(@$expected); ++$i) {
+        return 0 unless $self->_eq_pattern($got->[$i], $expected->[$i]);
+    }
+
+    return 1;
+}
+
+sub _eq_HASH {
+    my ($self, $got, $expected) = @_;
+
+    return 0 unless scalar(keys %$got) == scalar(keys %$expected);
+
+    for my $key ( keys %$expected ) {
+        return 0 unless $self->_eq_pattern($got->{$key}, $expected->{$key});
+    }
+
+    return 1;
+}
+
+sub _eq_pattern {
+    my ($self, $got, $expected) = @_;
+
+    my $ref = ref($expected);
+    unless ($ref) {
+        # simple type
+        unless (defined $expected && defined $got) {
+            unless (defined $expected || defined $got) {
+                return 1;
+            }
+            return 0;
+        }
+
+        if (looks_like_number($expected)) {
+            return 0 unless looks_like_number($got);
+
+            if (isfloat($expected) || isfloat($got)) {
+                return abs($expected - $got) < $self->{'epsilon'};
+            }
+            return $expected == $got;
+        }
+
+        return $expected eq $got;
+    }
+
+    my $addr   = refaddr($expected);
+    my $is_dup = $self->{'_dup_addr'};
+    if (exists $is_dup->{$addr}) {
+        die "Cycle in pattern: $expected";
+    }
+    $is_dup->{$addr} = 1;
+
+    my $class  = blessed($expected);
+    if ($class) {
+        my $got_blessed = blessed($got) || '';
+        my $got_addr = refaddr($got) || 0;
+        return (
+            $class eq $got_blessed &&
+            $addr == $got_addr
+        );
+    }
+
+    my $code = $self->can("_eq_$ref");
+    die "Don't know how to eq $ref type" unless $code;
+
+    return 0 unless ref($got) eq $ref;
+
+    return $self->$code($got, $expected);
+}
+
+sub eq_pattern {
+    my $self = shift;
+
+    my $res;
+    eval {
+        $res = $self->_eq_pattern(@_);
+    };
+    $self->{'_dup_addr'} = {};
+
+    die $@ if $@;
+
+    return $res;
+}
+
 package Data::PatternCompare::Any;
 
 sub new { bless({}); }
@@ -335,6 +431,14 @@ Be careful with the following example:
 
 Result of the code above is unpredicted. It depends on in what order keys will
 be returned by the C<keys()> function.
+
+=head2 eq_pattern($pattern_a, $pattern_b) : Boolean
+
+This method takes 2 arguments. Returns true if 2 patterns are strictly equal to
+each others.
+
+The main differece to C<compare_pattern() == 0> is that 42 != 43.
+C<$Data::PatterCompare::any> matched only to the same object.
 
 =head1 AUTHOR
 
