@@ -14,3 +14,4 @@ t/01_pattern_match.t
 t/02_compare_pattern.t
 t/03_exceptions.t
 t/04_eq_pattern.t
+t/05_export.t
